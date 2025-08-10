@@ -19,3 +19,8 @@ CopyEdit
 [04B] ::: ERR_PARTIAL_LOAD ::: "8th was never found in daylight"
 [07F] ::: WARNING ::: "If the door knows your name... do not knock"
 [END/TRANSMISSION]
+
+
+
+
+<!-- Key: The wing breaks where the crown once lay -->
