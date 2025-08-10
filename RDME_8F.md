@@ -13,8 +13,7 @@ The meaning is not.
 Choose carefully which you pick up.”
 
 
-pgsql
-CopyEdit
+
 [ARCHIVE//LOG:FRAGMENTS]
 [04B] ::: ERR_PARTIAL_LOAD ::: "8th was never found in daylight"
 [07F] ::: WARNING ::: "If the door knows your name... do not knock"
@@ -24,3 +23,4 @@ CopyEdit
 
 
 <!-- Key: The wing breaks where the crown once lay -->
+
