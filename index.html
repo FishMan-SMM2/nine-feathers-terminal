@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nine Feathers Terminal</title>
+<style>
+    body {
+        background-color: black;
+        color: #00ff66;
+        font-family: monospace;
+        padding: 20px;
+    }
+    h1 {
+        text-align: center;
+        color: #00ff66;
+    }
+    textarea, input, button, select {
+        background-color: black;
+        color: #00ff66;
+        border: 1px solid #00ff66;
+        padding: 5px;
+        font-family: monospace;
+        margin: 5px 0;
+    }
+    button:hover {
+        background-color: #003300;
+        cursor: pointer;
+    }
+    .tabs {
+        margin-top: 20px;
+    }
+    .tab-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    .tab-buttons button {
+        flex: 1;
+    }
+    .tab-content {
+        display: none;
+        border-top: 1px solid #00ff66;
+        padding-top: 10px;
+        margin-top: 10px;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    @keyframes flicker {
+        0% {opacity: 1;}
+        50% {opacity: 0.4;}
+        100% {opacity: 1;}
+    }
+    .corrupt {
+        animation: flicker 0.1s infinite;
+    }
+</style>
+</head>
+<body>
+<h1>☰ Nine Feathers Terminal ☰</h1>
+<p>Enter text to encode or decode using the Feather Cipher.</p>
+
+<textarea id="inputText" rows="4" cols="50" placeholder="Enter your text here..."></textarea><br>
+<select id="featherSelect">
+    <option value="1">Feather 1</option>
+    <option value="2">Feather 2</option>
+    <option value="3">Feather 3</option>
+    <option value="4">Feather 4</option>
+    <option value="5">Feather 5</option>
+    <option value="6">Feather 6</option>
+    <option value="7">Feather 7</option>
+    <option value="8">Feather 8</option>
+    <option value="9">Feather 9</option>
+    <option value="null">Null Feather</option>
+</select><br>
+<button onclick="encodeText()">Encode</button>
+<button onclick="decodeText()">Decode</button>
+
+<h3>Output:</h3>
+<div id="output" style="white-space: pre-wrap; border: 1px solid #00ff66; padding: 10px; min-height: 50px;"></div>
+
+<div class="tabs">
+    <div class="tab-buttons">
+        <button onclick="openTab('archive')">Archive</button>
+        <button onclick="openTab('hints')">Hints</button>
+    </div>
+    <div id="archive" class="tab-content">
+        <p>Fragment: "…door remembers… dust is not gone…"</p>
+    </div>
+    <div id="hints" class="tab-content">
+        <p>Shadow bends twice. Wing follows.</p>
+    </div>
+</div>
+
+<script>
+// Console Easter Egg
+console.log("[REDACTED ENTRY//FEATHER_08]\nThe door remembers. The dust is not gone.\nWhen the shadow bends twice, follow the wing.");
+
+function shiftChar(c, shift) {
+    const isUpper = c >= 'A' && c <= 'Z';
+    const isLower = c >= 'a' && c <= 'z';
+    if (!isUpper && !isLower) return c;
+
+    const base = isUpper ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+    return String.fromCharCode((c.charCodeAt(0) - base + shift + 26) % 26 + base);
+}
+
+function encodeText() {
+    const text = document.getElementById('inputText').value;
+    const feather = document.getElementById('featherSelect').value;
+    let translated = text;
+
+    if (feather === 'null') {
+        translated = text.replace(/t/g, '†');
+        document.getElementById('output').innerText = translated;
+        return;
+    }
+
+    let shifted = '';
+    for (let ch of translated) {
+        if (ch === 't') {
+            shifted += '†';
+        } else {
+            shifted += shiftChar(ch, 3);
+        }
+    }
+
+    document.getElementById('output').innerText = shifted;
+}
+
+function decodeText() {
+    const text = document.getElementById('inputText').value;
+    const feather = document.getElementById('featherSelect').value;
+
+    if (feather === 'null') {
+        const outputDiv = document.getElementById('output');
+        let counter = 0;
+        const interval = setInterval(() => {
+            outputDiv.innerText = Math.random().toString(36).substring(2, 8);
+            counter++;
+            if (counter > 10) {
+                clearInterval(interval);
+                outputDiv.classList.remove('corrupt');
+                outputDiv.innerText = "[Null Feather cannot be translated]";
+            }
+        }, 100);
+        outputDiv.classList.add('corrupt');
+        return;
+    }
+
+    let unshifted = '';
+    for (let ch of text) {
+        if (ch === '†') {
+            unshifted += 't';
+        } else {
+            unshifted += shiftChar(ch, -3);
+        }
+    }
+
+    document.getElementById('output').innerText = unshifted;
+}
+
+function openTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+}
+</script>
+</body>
+</html>
