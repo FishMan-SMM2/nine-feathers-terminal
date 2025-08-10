@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nine Feathers Terminal</title>
+<style>
+:root{--bg:#000;--txt:#7CFF5A;--muted:#4b6b3a;--accent:#7fff7f;--mono:ui-monospace,Menlo,Monaco,"Roboto Mono","Courier New",monospace;}
+html,body{height:100%;margin:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0.8), #000 60%);color:var(--txt);font-family:var(--mono);-webkit-font-smoothing:antialiased;}
+.app{max-width:1140px;margin:24px auto;padding:18px;border-radius:8px;background:linear-gradient(180deg, rgba(0,20,0,0.45), rgba(0,0,0,0.6));border:1px solid rgba(0,255,80,0.06);box-shadow:0 8px 40px rgba(0,0,0,0.8);}
+.header{display:flex;align-items:center;gap:12px}
+.title{font-size:20px;font-weight:700;color:var(--accent);letter-spacing:1px}
+.toolbar{margin-left:auto;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:14px}
+.panel{background:rgba(0,0,0,0.55);padding:12px;border-radius:8px;border:1px solid rgba(0,255,80,0.03);min-height:360px;box-sizing:border-box}
+.input{display:flex;flex-direction:column;gap:8px}
+textarea,select,button{font-family:var(--mono);font-size:14px;color:var(--txt);background:transparent;border:1px solid rgba(0,255,80,0.06);padding:10px;border-radius:6px;resize:vertical}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:linear-gradient(180deg,#8cff9a,#60d042);color:#001b00;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:700}
+.btn.ghost{background:transparent;border:1px solid rgba(0,255,80,0.06);color:var(--txt)}
+.small{font-size:13px;color:var(--muted)}
+.output{height:260px;overflow:auto;white-space:pre-wrap;padding:10px;border-radius:6px;background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.08));border:1px dashed rgba(0,255,80,0.03)}
+.cursor{display:inline-block;width:10px;height:16px;background:var(--txt);vertical-align:middle;margin-left:6px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0.1}}
+.tablist{display:flex;flex-direction:column;gap:8px}
+.tab{background:rgba(0,0,0,0.35);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.02);cursor:pointer;color:var(--muted);font-size:13px}
+.tab:hover{background:rgba(0,0,0,0.45);color:var(--txt)}
+.hint{font-size:13px;color:var(--muted);margin-top:8px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200}
+.modal .card{background:#050805;padding:18px;border-radius:10px;max-width:900px;border:1px solid rgba(0,255,80,0.06);box-shadow:0 10px 40px rgba(0,0,0,0.8);color:var(--txt);max-height:80vh;overflow:auto}
+.meta{font-size:12px;color:var(--muted);margin-top:8px}
+.nullmsg{color:#ffccaa;margin-top:10px;font-weight:700}
+.footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)}
+/* subtle scanlines */
+.app::after{content:'';position:fixed;left:0;right:0;top:0;height:100%;pointer-events:none;background-image:linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.06) 51%);background-size:100% 4px;mix-blend-mode:overlay;opacity:0.6}
+.lore-file{border-left:3px solid rgba(0,255,80,0.04);padding-left:8px}
+</style>
+</head>
+<body>
+<!-- Key: The shadow waits where the feather lands last -->
+
+<div class="app" role="application" aria-label="Nine Feathers Terminal">
+  <div class="header">
+    <div>
+      <div class="title">Nine Feathers Terminal</div>
+      <div class="small">Subtle translator · encoder / decoder · lore archive</div>
+    </div>
+    <div class="toolbar small">Status: <span id="status">Ready</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="input">
+        <label class="small">Input text</label>
+        <textarea id="input" rows="6">At first, I cursed the shadow's wing and saw Franz and Starry disappear.</textarea>
+        <div class="controls">
+          <label class="small">Feather</label>
+          <select id="feather">
+            <option value="1">1 — Midnight</option>
+            <option value="2">2 — Cross</option>
+            <option value="3">3 — Silver Vein</option>
+            <option value="4">4 — Crimson</option>
+            <option value="5">5 — Broken</option>
+            <option value="6">6 — Whispering</option>
+            <option value="7">7 — Veiled</option>
+            <option value="8">8 — Raven's Eye</option>
+            <option value="9">9 — Obscura</option>
+            <option value="10">10 — Null</option>
+          </select>
+          <label style="display:inline-flex;align-items:center;gap:6px" class="small"><input type="checkbox" id="nullNewline"/> Null: replace newlines</label>
+          <button class="btn" id="encode">Encode</button>
+          <button class="btn ghost" id="decode">Decode</button>
+          <button class="btn ghost" id="apply">Apply & Save</button>
+        </div>
+        <div class="hint">Selecting N applies feathers 1 → ... → N. Null overrides.</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label class="small">Output</label>
+        <div id="output" class="output"><span id="outtext">Welcome. Ready.</span><span class="cursor" aria-hidden="true"></span></div>
+        <div id="nullNote" class="nullmsg" style="display:none">[Null Feather cannot be translated]</div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Encoder: Feather stack</div>
+        <div class="small">Built offline · single file</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="small">Archive</div>
+      <div style="height:10px"></div>
+      <div class="tablist" id="tablist">
+        <!-- tabs inserted here -->
+      </div>
+      <div class="hint">Click a hint to reveal a short file. Click the file to open full entry.</div>
+    </div>
+  </div>
+</div>
+
+<!-- modal for lore full text -->
+<div id="modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="card">
+      <div id="modalTitle" style="font-weight:700;margin-bottom:8px"></div>
+      <div id="modalBody" style="white-space:pre-wrap"></div>
+      <div class="meta"><button id="closeModal" class="btn ghost">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Utils ---
+function download(filename, text){ const b=new Blob([text],{type:'text/plain'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),5000); }
+function b64enc(s){return btoa(unescape(encodeURIComponent(s)));}
+function b64dec(s){return decodeURIComponent(escape(atob(s)));}
+
+// --- Feather logic ---
+// We'll preserve original text in meta for reversibility (except Null).
+const ALPHA = "abcdefghijklmnopqrstuvwxyz";
+function shiftChar(ch, shift){ const lower = ch.toLowerCase(); if(!ALPHA.includes(lower)) return ch; const i=ALPHA.indexOf(lower); const out = ALPHA[(i+shift+26)%26]; return (ch===ch.toUpperCase()? out.toUpperCase(): out); }
+function shiftText(text, shift){ return Array.from(text).map(c=>shiftChar(c,shift)).join(''); }
+
+// Feather implementations accept (current, original) where needed.
+function f1(current, original){ // Midnight: French-ish mapping + Caesar +3 (flavor)
+  const map = {'at':'à','first':'premièrement','i':'je','trust':'confiance'};
+  // simple token replace for flavor
+  let s = current;
+  Object.keys(map).forEach(k=>{ s = s.replace(new RegExp('\\b'+k+'\\b','gi'), (m)=>{ const rep = map[k]; return /[A-Z]/.test(m[0])? rep.charAt(0).toUpperCase()+rep.slice(1):rep; }); });
+  return shiftText(s, 3);
+}
+
+function f2(current, original){ // Cross: replace characters that WERE lowercase 't' in original
+  // build array of chars from current, and overwrite positions where original has 't'
+  const curArr = Array.from(current);
+  const origArr = Array.from(original);
+  for(let i=0;i<origArr.length && i<curArr.length;i++){
+    if(origArr[i] === 't') curArr[i] = '†';
+  }
+  return curArr.join('');
+}
+
+function f3(current, original){ // Silver Vein: reverse letters in each word
+  return current.replace(/\w+/g, w=>w.split('').reverse().join(''));
+}
+
+function f4(current, original){ // Crimson: +5 on every 4th letter (letter-count)
+  let out=''; let idx=0;
+  for(let i=0;i<current.length;i++){ const ch=current[i]; if(/[A-Za-z]/.test(ch)){ if(idx%4===0) out+=shiftChar(ch,5); else out+=ch; idx++; } else out+=ch; }
+  return out;
+}
+
+function f5(current, original){ // Broken: mark every 7th letter with placeholder ◌ (irreversible)
+  let out=''; let idx=0;
+  for(let i=0;i<current.length;i++){ const ch=current[i]; if(/[A-Za-z]/.test(ch)){ if(idx%7===6) out+='◌'; else out+=ch; idx++; } else out+=ch; }
+  return out;
+}
+
+function f6(current, original){ // Whispering: punctuation mapping
+  return current.replace(/ /g,'·').replace(/,/g,'¶').replace(/\./g,'§').replace(/\?/g,'¿').replace(/!/g,'¡').replace(/:/g,'∷').replace(/;/g,'⁏').replace(/\n/g,'↵');
+}
+
+function f7(current, original){ // Veiled: -3 on even letter indices
+  let out=''; let idx=0;
+  for(let i=0;i<current.length;i++){ const ch=current[i]; if(/[A-Za-z]/.test(ch)){ if(idx%2===0) out+=shiftChar(ch,-3); else out+=ch; idx++; } else out+=ch; }
+  return out;
+}
+
+function f8(current, original){ // Raven's Eye: mark first two words and uppercase vowels (visual)
+  let s=current.trim();
+  const parts=s.split(/\s+/);
+  if(parts[0]) s = s.replace(parts[0], '«'+parts[0]+'»');
+  if(parts[1]) s = s.replace(parts[1], '«'+parts[1]+'»');
+  return s.replace(/[aeiou]/g, c=>c.toUpperCase());
+}
+
+function f9(current, original){ // Obscura: insert marker between sentences
+  return current.replace(/([.!?])(\s|$)/g, (m,p1,p2)=> p1+' ‹OB›'+(p2||''));
+}
+
+function f10_null(current, original, opts){ // Null: unreadable glyphs
+  let src = current;
+  if(opts && opts.nullNewline) src = src.replace(/\n/g,'␤');
+  const glyphs = '▮▯▰▱◆◇○●◐◑◒◓✶✷✸✹✺✻✼✽✾✿✪✺۞☯✠';
+  let out='';
+  for(let i=0;i<src.length;i++){
+    const ch=src[i];
+    if(/\s/.test(ch)) out+=' ';
+    else out += glyphs[Math.abs((ch.charCodeAt(0)*7 + i*13) % glyphs.length)];
+  }
+  return out;
+}
+
+// encoder map
+const FE = {1:f1,2:f2,3:f3,4:f4,5:f5,6:f6,7:f7,8:f8,9:f9,10:f10_null};
+
+// --- Stacking ---
+// We need to ensure Feather 2 uses original lowercase t positions. We'll pass original text to each FE.
+// originalText remains unchanged.
+function encodeStack(n, text){
+  const original = text;
+  if(n===10){ // Null override: show glitch animation separately
+    return {result: null, applied:[10], original};
+  }
+  let cur = text;
+  const applied=[];
+  for(let i=1;i<=n;i++){
+    applied.push(i);
+    cur = FE[i](cur, original);
+  }
+  return {result: cur, applied, original};
+}
+
+// --- Decoding ---
+// We will restore original for 1..9 using META if available, else best-effort reverse.
+// Approach: if the output we produced earlier included META (we'll attach it on save), use that to restore.
+// Otherwise attempt inverse in reverse order for 1..9.
+function attemptDecodeBack(text, applied){
+  // if we have meta appended, extract
+  const meta = extractMeta(text);
+  if(meta && meta.original) return {restored:meta.original, method:'meta'};
+  // best-effort inversion for applied 1..9
+  let cur = text;
+  for(let i=applied.length-1;i>=0;i--){
+    const f = applied[i];
+    if(f===10) return {restored:null, method:'null'}; // cannot reverse Null
+    cur = reverseFeather(f, cur);
+  }
+  return {restored:cur, method:'best-effort'};
+}
+
+function reverseFeather(n, text){
+  // best-effort inverse for each (not perfect)
+  if(n===1) return shiftText(text, -3);
+  if(n===2) return text.replace(/†/g,'t');
+  if(n===3) return text.replace(/\w+/g, w=>w.split('').reverse().join(''));
+  if(n===4){ let out=''; let idx=0; for(let i=0;i<text.length;i++){ const ch=text[i]; if(/[A-Za-z]/.test(ch)){ if(idx%4===0) out+=shiftChar(ch,-5); else out+=ch; idx++; } else out+=ch;} return out; }
+  if(n===5) return text.replace(/◌/g,''); // can't know removed letters
+  if(n===6) return text.replace(/·/g,' ').replace(/¶/g,',').replace(/§/g,'.').replace(/¿/g,'?').replace(/¡/g,'!').replace(/∷/g,':').replace(/⁏/g,';').replace(/↵/g,'\n');
+  if(n===7){ let out=''; let idx=0; for(let i=0;i<text.length;i++){ const ch=text[i]; if(/[A-Za-z]/.test(ch)){ if(idx%2===0) out+=shiftChar(ch,3); else out+=ch; idx++; } else out+=ch;} return out; }
+  if(n===8) return text.replace(/«/g,'').replace(/»/g,'').replace(/[AEIOU]/g, m=>m.toLowerCase());
+  if(n===9) return text.replace(/‹OB›/g,'');
+  return text;
+}
+
+// --- META helpers ---
+function attachMeta(resultText, originalText, applied){
+  const meta = {original:originalText,applied:applied,ts:new Date().toISOString()};
+  return resultText + "\n\n---META---" + b64enc(JSON.stringify(meta));
+}
+function extractMeta(text){
+  const marker = "\n\n---META---";
+  const idx = text.lastIndexOf(marker);
+  if(idx===-1) return null;
+  const enc = text.slice(idx+marker.length).trim();
+  try{ return JSON.parse(b64dec(enc)); }catch(e){return null;}
+}
+
+// --- UI wiring ---
+const inputEl = document.getElementById('input');
+const featherEl = document.getElementById('feather');
+const outEl = document.getElementById('outtext');
+const outputBox = document.getElementById('output');
+const statusEl = document.getElementById('status');
+const nullNewlineEl = document.getElementById('nullNewline');
+const nullNote = document.getElementById('nullNote');
+
+let lastSaved = null; // {plain,meta,applied}
+
+// encode button
+document.getElementById('encode').addEventListener('click', ()=>{
+  statusEl.textContent = 'Encoding...';
+  nullNote.style.display='none';
+  const n = parseInt(featherEl.value,10);
+  const text = inputEl.value;
+  if(n===10){
+    // Null: glitch animation then final glyphs + note. We still store nothing reversible.
+    glitchAnimate(text, ()=>{
+      const final = f10_null(text, nullNewlineEl.checked);
+      outEl.textContent = final;
+      nullNote.style.display='block';
+      statusEl.textContent = 'Null encoded';
+      lastSaved = {plain: final, meta: null, applied:[10]} ;
+    });
+    return;
+  }
+  const res = encodeStack(n, text);
+  const attached = attachMeta(res.result, res.original, res.applied);
+  outEl.textContent = res.result;
+  lastSaved = {plain: res.result, meta: attached, applied: res.applied};
+  statusEl.textContent = 'Encoded: ' + res.applied.join('+');
+});
+
+// decode button: should restore back to original for 1..9 if possible
+document.getElementById('decode').addEventListener('click', ()=>{
+  statusEl.textContent = 'Decoding...';
+  // prefer meta from lastSaved or from input textarea if contains meta
+  const candidate = lastSaved && lastSaved.meta ? lastSaved.meta : inputEl.value;
+  const meta = lastSaved && lastSaved.meta ? extractMeta(lastSaved.meta) : extractMeta(inputEl.value);
+  if(meta){
+    // restore exact original
+    inputEl.value = meta.original;
+    outEl.textContent = '[Restored from META]';
+    statusEl.textContent = 'Decoded (exact)';
+    return;
+  }
+  // ask user what N to reverse (we'll use selected feather as top)
+  const n = parseInt(featherEl.value,10);
+  // if n==10 and lastSaved shows applied includes 10, can't reverse
+  if(lastSaved && lastSaved.applied && lastSaved.applied.includes(10)){
+    outEl.textContent = lastSaved.plain;
+    nullNote.style.display='block';
+    statusEl.textContent = 'Null irreversible';
+    return;
+  }
+  // attempt best-effort reverse of 1..n
+  const attempt = attemptDecodeBack(outEl.textContent, Array.from({length:n}, (_,i)=>i+1));
+  if(attempt.restored!==null){
+    inputEl.value = attempt.restored;
+    outEl.textContent = '[Best-effort decoded]';
+    statusEl.textContent = 'Decoded (best-effort)';
+  } else {
+    outEl.textContent = '[Unable to decode]';
+    statusEl.textContent = 'Decode failed';
+  }
+});
+
+// apply & save: download meta-attached file if available
+document.getElementById('apply').addEventListener('click', ()=>{
+  if(lastSaved && lastSaved.meta){
+    download('nine_feathers_output.txt', lastSaved.meta);
+    statusEl.textContent = 'Saved (with META)';
+  } else if(lastSaved && lastSaved.plain){
+    download('nine_feathers_output.txt', lastSaved.plain + "\n\n[No META attached]");
+    statusEl.textContent = 'Saved (no META)';
+  } else {
+    download('nine_feathers_output.txt', outEl.textContent);
+    statusEl.textContent = 'Saved (raw)';
+  }
+});
+
+// glitch animation for Null feather
+function glitchAnimate(src, done){
+  const glyphs = '▓▒░█▮▯◆◇○●◉✶✷✸✹✺✻✼✽✾✿';
+  const duration = 2400;
+  const interval = 80;
+  let elapsed=0;
+  const id = setInterval(()=>{
+    elapsed += interval;
+    const len = Math.min(300, Math.max(20, src.length));
+    let s = Array.from({length:len}).map((_,i)=> glyphs[Math.floor(Math.abs(Math.sin((elapsed+i)/17))*glyphs.length)] ).join('');
+    outEl.textContent = s;
+    if(elapsed>=duration){ clearInterval(id); done(); }
+  }, interval);
+}
+
+// --- Lore sidebar (cryptic broken hints) ---
+const loreItems = [
+  {hint:'feather groove • door waits', title:'My Crown is Dust', full:`They stood at the feather-shaped door. Fish ran his hand over the groove and said: "This door knows if you belong."`},
+  {hint:'black slips from sleeve', title:'First Feathers', full:`At first a single black feather fell. Then three more. Fish smiled in a way that did not reach his eyes.`},
+  {hint:'iron carving • angels', title:'Fear of Angels', full:`A carving of winged figures made his jaw clench. "They are too pure," he said. "I can never be one."`},
+  {hint:'C0D3 • 들어라', title:'Smile\'s Warning', full:`A level called C0D3, description: "들어라 (Listen)". Smile typed: "Project S, X, Z... the TRU♰H."`},
+  {hint:'nevermore • single feather', title:'Nevermore Draft', full:`A pixel feather on black, white crosses like a graveyard. A name in the draft: Nevermore.`},
+  {hint:'taken at night • flock', title:'The Taking', full:`Ravens circled. He didn't run. She called; the flock took him into the darkness.`},
+  {hint:'blanked lines • missing', title:'TRU♰H Fragment', full:`fragment_026 :: TRU♰H — CORRUPTED ENTRY. Some lines unreadable, some names gone.`}
+];
+
+const tablist = document.getElementById('tablist');
+loreItems.forEach((it,idx)=>{
+  const el = document.createElement('div');
+  el.className='tab';
+  el.innerHTML = `<div class="lore-file"><strong style="color:var(--accent)">${it.title}</strong><div style="color:var(--muted);margin-top:6px">${it.hint}</div></div>`;
+  el.addEventListener('click', ()=> openModal(it));
+  tablist.appendChild(el);
+});
+
+// modal functions
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modalTitle');
+const modalBody = document.getElementById('modalBody');
+document.getElementById('closeModal').addEventListener('click', closeModal);
+
+function openModal(it){
+  modal.style.display='block';
+  modalTitle.textContent = it.title;
+  modalBody.textContent = it.full;
+}
+function closeModal(){ modal.style.display='none'; modalTitle.textContent=''; modalBody.textContent=''; }
+
+// initial state
+outputBox.scrollTop = 0;
+</script>
+</body>
+</html>
